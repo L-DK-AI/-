@@ -1,0 +1,2003 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>霓虹音乐库 | 客户端+管理端一体系统</title>
+    <script src="https://cdn.tailwindcss.com">
+    </script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js">
+    </script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        neon: { pink: '#ff2e88', blue: '#00f0ff', purple: '#9333ea' },
+                        darkBg: '#0f0f17'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* ===== 基础重置 & 滚动条 ===== */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 46, 136, 0.3) transparent;
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 46, 136, 0.4);
+            border-radius: 4px;
+        }
+
+        /* ===== 全局霓虹光晕 ===== */
+        .neon-glow-pink {
+            box-shadow: 0 0 20px rgba(255, 46, 136, 0.15), 0 0 60px rgba(255, 46, 136, 0.05);
+        }
+        .neon-glow-blue {
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.12), 0 0 60px rgba(0, 240, 255, 0.04);
+        }
+        .neon-glow-purple {
+            box-shadow: 0 0 20px rgba(147, 51, 234, 0.12), 0 0 60px rgba(147, 51, 234, 0.04);
+        }
+
+        /* ===== 玻璃态 ===== */
+        .glass {
+            background: rgba(255, 255, 255, 0.04);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .glass-strong {
+            background: rgba(255, 255, 255, 0.07);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        /* ===== 客户端背景 ===== */
+        .client-bg {
+            background: radial-gradient(ellipse at 20% 50%, rgba(147, 51, 234, 0.08) 0%, transparent 60%),
+            radial-gradient(ellipse at 80% 20%, rgba(255, 46, 136, 0.06) 0%, transparent 50%),
+            radial-gradient(ellipse at 50% 80%, rgba(0, 240, 255, 0.05) 0%, transparent 50%),
+            #0f0f17;
+            min-height: 100vh;
+        }
+
+        /* ===== 导航栏 ===== */
+        .nav-glow {
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 240, 255, 0.03);
+            border-bottom: 1px solid rgba(0, 240, 255, 0.08);
+        }
+        .nav-glow .nav-item {
+            position: relative;
+            transition: color 0.3s ease;
+        }
+        .nav-glow .nav-item::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #ff2e88, #00f0ff);
+            transition: width 0.3s ease;
+            border-radius: 2px;
+        }
+        .nav-glow .nav-item:hover::after,
+        .nav-glow .nav-item.active::after {
+            width: 60%;
+        }
+
+        /* ===== 分类标签 ===== */
+        .category-tag {
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            background: rgba(255, 255, 255, 0.03);
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+        .category-tag:hover {
+            transform: translateY(-2px);
+            border-color: rgba(0, 240, 255, 0.3);
+            background: rgba(0, 240, 255, 0.06);
+            box-shadow: 0 4px 20px rgba(0, 240, 255, 0.08);
+        }
+        .category-tag.active {
+            border-color: #00f0ff;
+            background: rgba(0, 240, 255, 0.12);
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.1), inset 0 0 20px rgba(0, 240, 255, 0.03);
+            color: #00f0ff;
+        }
+
+        /* ===== 音乐卡片 ===== */
+        .music-card {
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            cursor: pointer;
+            overflow: hidden;
+            border-radius: 16px;
+        }
+        .music-card:hover {
+            transform: translateY(-6px) scale(1.01);
+            border-color: rgba(255, 46, 136, 0.25);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 30px rgba(255, 46, 136, 0.06);
+        }
+        .music-card .card-cover {
+            position: relative;
+            overflow: hidden;
+            aspect-ratio: 1/1;
+            background: #1a1a2e;
+        }
+        .music-card .card-cover img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+        .music-card:hover .card-cover img {
+            transform: scale(1.04);
+        }
+        .music-card .card-cover .play-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .music-card:hover .card-cover .play-overlay {
+            opacity: 1;
+        }
+        .music-card .card-cover .play-overlay i {
+            font-size: 40px;
+            color: #fff;
+            text-shadow: 0 0 30px rgba(255, 46, 136, 0.6);
+            transform: scale(0.8);
+            transition: transform 0.3s ease;
+        }
+        .music-card:hover .card-cover .play-overlay i {
+            transform: scale(1);
+        }
+        .music-card .card-body {
+            padding: 14px 16px 16px;
+        }
+        .music-card .card-body .title {
+            font-weight: 600;
+            font-size: 15px;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 1;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .music-card .card-body .singer {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 2px;
+        }
+        .music-card .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.04);
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.4);
+        }
+        .music-card .card-footer .action-icons {
+            display: flex;
+            gap: 12px;
+        }
+        .music-card .card-footer .action-icons i {
+            transition: all 0.25s ease;
+            cursor: pointer;
+            font-size: 15px;
+        }
+        .music-card .card-footer .action-icons i:hover {
+            transform: scale(1.15);
+        }
+        .music-card .card-footer .action-icons .fa-comment-o:hover {
+            color: #00f0ff;
+        }
+        .music-card .card-footer .action-icons .fa-plus-square-o:hover {
+            color: #9333ea;
+        }
+        .music-card .card-footer .action-icons .fa-heart:hover {
+            color: #ff2e88;
+        }
+        .music-card .card-footer .action-icons .fa-heart.liked {
+            color: #ff2e88;
+            text-shadow: 0 0 12px rgba(255, 46, 136, 0.5);
+        }
+
+        /* ===== 底部播放器 ===== */
+        .player-bar {
+            background: rgba(20, 20, 35, 0.92);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.5);
+        }
+        .player-bar .control-btn {
+            transition: all 0.25s ease;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            cursor: pointer;
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        .player-bar .control-btn:hover {
+            background: rgba(255, 46, 136, 0.12);
+            border-color: rgba(255, 46, 136, 0.2);
+            color: #fff;
+            transform: scale(1.05);
+        }
+        .player-bar .control-btn.play-btn {
+            background: linear-gradient(135deg, rgba(255, 46, 136, 0.2), rgba(147, 51, 234, 0.2));
+            border-color: rgba(255, 46, 136, 0.25);
+            width: 48px;
+            height: 48px;
+            font-size: 22px;
+        }
+        .player-bar .control-btn.play-btn:hover {
+            background: linear-gradient(135deg, rgba(255, 46, 136, 0.35), rgba(147, 51, 234, 0.35));
+            border-color: rgba(255, 46, 136, 0.4);
+            box-shadow: 0 0 30px rgba(255, 46, 136, 0.15);
+        }
+        .player-bar .progress-track {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 4px;
+            cursor: pointer;
+            position: relative;
+            transition: height 0.2s ease;
+        }
+        .player-bar .progress-track:hover {
+            height: 6px;
+        }
+        .player-bar .progress-track .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #ff2e88, #00f0ff);
+            width: 0%;
+            position: relative;
+            transition: width 0.1s linear;
+        }
+        .player-bar .progress-track .progress-fill::after {
+            content: '';
+            position: absolute;
+            right: -6px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff2e88;
+            box-shadow: 0 0 20px rgba(255, 46, 136, 0.4);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .player-bar .progress-track:hover .progress-fill::after {
+            opacity: 1;
+        }
+
+        /* ===== 歌词面板 ===== */
+        #lyric-panel {
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease;
+            background: rgba(15, 15, 23, 0.92);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        #lyric-panel.hidden-panel {
+            transform: translateY(calc(100% + 20px));
+            opacity: 0;
+            pointer-events: none;
+        }
+        .lyric-line {
+            transition: all 0.35s ease;
+            opacity: 0.3;
+            transform: scale(0.96);
+            padding: 6px 0;
+            cursor: pointer;
+            border-radius: 6px;
+            padding-left: 12px;
+            padding-right: 12px;
+        }
+        .lyric-line:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .lyric-line.active {
+            opacity: 1;
+            transform: scale(1.06);
+            color: #ff2e88;
+            text-shadow: 0 0 30px rgba(255, 46, 136, 0.3), 0 0 60px rgba(255, 46, 136, 0.1);
+            font-weight: 600;
+        }
+        .lyric-line.past {
+            opacity: 0.5;
+            color: rgba(167, 139, 250, 0.7);
+        }
+
+        /* ===== 评论 ===== */
+        .comment-card {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            padding: 14px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            transition: border-color 0.3s ease;
+        }
+        .comment-card:hover {
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        /* ===== 收藏 & 歌单 ===== */
+        .collection-grid .item {
+            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border-radius: 14px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+        }
+        .collection-grid .item:hover {
+            transform: translateY(-4px);
+            border-color: rgba(0, 240, 255, 0.2);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        /* ===== 输入框 ===== */
+        .input-neon {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            padding: 10px 16px;
+            color: #fff;
+            transition: all 0.3s ease;
+            outline: none;
+            width: 100%;
+        }
+        .input-neon:focus {
+            border-color: rgba(0, 240, 255, 0.3);
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.05), inset 0 0 20px rgba(0, 240, 255, 0.02);
+        }
+        .input-neon::placeholder {
+            color: rgba(255, 255, 255, 0.25);
+        }
+
+        /* ===== 按钮霓虹 ===== */
+        .btn-neon-pink {
+            background: linear-gradient(135deg, #ff2e88, #d81b60);
+            border: none;
+            color: #fff;
+            padding: 10px 24px;
+            border-radius: 10px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(255, 46, 136, 0.1);
+        }
+        .btn-neon-pink:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(255, 46, 136, 0.25);
+        }
+
+        .btn-neon-blue {
+            background: linear-gradient(135deg, #00f0ff, #0088cc);
+            border: none;
+            color: #fff;
+            padding: 10px 24px;
+            border-radius: 10px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.1);
+        }
+        .btn-neon-blue:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 240, 255, 0.25);
+        }
+
+        .btn-neon-purple {
+            background: linear-gradient(135deg, #9333ea, #6d28d9);
+            border: none;
+            color: #fff;
+            padding: 10px 24px;
+            border-radius: 10px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(147, 51, 234, 0.1);
+        }
+        .btn-neon-purple:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(147, 51, 234, 0.25);
+        }
+
+        .btn-outline-glass {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.7);
+            padding: 10px 24px;
+            border-radius: 10px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .btn-outline-glass:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
+            color: #fff;
+        }
+
+        /* ===== 登录页保留 ===== */
+        .login-bg {
+            background: linear-gradient(-45deg, #0f0f17, #1a0a2e, #0f1a2e, #0a1628);
+            background-size: 400% 400%;
+            animation: bgGradientShift 12s ease infinite;
+        }
+        @keyframes bgGradientShift {
+            0%,
+            100% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+        .login-card-enter {
+            animation: cardFadeInUp 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes cardFadeInUp {
+            0% {
+                opacity: 0;
+                transform: translateY(60px) scale(0.92);
+                filter: blur(8px);
+            }
+            60% {
+                opacity: 1;
+                transform: translateY(-8px) scale(1.01);
+                filter: blur(0);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+                filter: blur(0);
+            }
+        }
+        .login-card-exit {
+            animation: cardExit 0.6s ease-in forwards;
+        }
+        @keyframes cardExit {
+            0% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(0.8) translateY(-40px);
+                filter: blur(12px);
+            }
+        }
+        @keyframes shake {
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+            15% {
+                transform: translateX(-8px) rotate(-1deg);
+            }
+            30% {
+                transform: translateX(7px) rotate(1deg);
+            }
+            45% {
+                transform: translateX(-6px) rotate(-0.5deg);
+            }
+            60% {
+                transform: translateX(5px) rotate(0.5deg);
+            }
+            75% {
+                transform: translateX(-3px);
+            }
+            90% {
+                transform: translateX(2px);
+            }
+        }
+        .float-note {
+            position: absolute;
+            font-size: var(--note-size);
+            color: var(--note-color);
+            opacity: 0;
+            animation: floatNote var(--note-speed) linear infinite;
+            animation-delay: var(--note-delay);
+            pointer-events: none;
+        }
+        @keyframes floatNote {
+            0% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.5;
+            }
+            90% {
+                opacity: 0.5;
+            }
+            100% {
+                transform: translateY(-20vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        .eq-bar {
+            width: 3px;
+            background: linear-gradient(to top, #ff2e88, #00f0ff);
+            border-radius: 2px;
+            animation: eqBar var(--bar-speed) ease-in-out infinite;
+            animation-delay: var(--bar-delay);
+        }
+        @keyframes eqBar {
+            0%,
+            100% {
+                height: 6px;
+            }
+            50% {
+                height: var(--bar-h);
+            }
+        }
+
+        /* ===== 响应式微调 ===== */
+        @media (max-width: 640px) {
+            .player-bar .control-btn {
+                width: 32px;
+                height: 32px;
+                font-size: 14px;
+            }
+            .player-bar .control-btn.play-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 18px;
+            }
+            .music-card .card-body .title {
+                font-size: 13px;
+            }
+            .music-card .card-body .singer {
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-darkBg text-gray-100 dark overflow-x-hidden transition-all duration-500">
+<div id="app">
+    <!-- ============ 登录注册视图 ============ -->
+    <div class="min-h-screen flex items-center justify-center p-4 login-bg relative overflow-hidden" id="page-login">
+        <div class="absolute inset-0 pointer-events-none overflow-hidden" id="login-particles">
+            <span class="float-note" style="--note-size:20px;--note-color:#ff2e88;--note-speed:8s;--note-delay:0s;left:10%">&#9835;</span>
+            <span class="float-note" style="--note-size:16px;--note-color:#00f0ff;--note-speed:10s;--note-delay:1.5s;left:25%">&#9834;</span>
+            <span class="float-note" style="--note-size:24px;--note-color:#9333ea;--note-speed:7s;--note-delay:0.5s;left:40%">&#9833;</span>
+            <span class="float-note" style="--note-size:14px;--note-color:#ff2e88;--note-speed:12s;--note-delay:3s;left:55%">&#9839;</span>
+            <span class="float-note" style="--note-size:18px;--note-color:#00f0ff;--note-speed:9s;--note-delay:2s;left:70%">&#9835;</span>
+            <span class="float-note" style="--note-size:22px;--note-color:#9333ea;--note-speed:11s;--note-delay:4s;left:85%">&#9834;</span>
+            <span class="float-note" style="--note-size:16px;--note-color:#ff2e88;--note-speed:8.5s;--note-delay:1s;left:5%">&#9833;</span>
+            <span class="float-note" style="--note-size:20px;--note-color:#00f0ff;--note-speed:10.5s;--note-delay:2.5s;left:92%">&#9839;</span>
+        </div>
+        <div class="w-full max-w-md glass-strong rounded-2xl p-8 login-card-enter relative z-10" id="login-card" style="border-color:rgba(0,240,255,0.15);box-shadow:0 0 40px rgba(0,240,255,0.05),0 20px 60px rgba(0,0,0,0.4);">
+            <div class="flex items-end justify-center gap-1 mb-4 h-8">
+                <span class="eq-bar" style="--bar-h:28px;--bar-speed:0.8s;--bar-delay:0s"></span>
+                <span class="eq-bar" style="--bar-h:20px;--bar-speed:0.6s;--bar-delay:0.1s"></span>
+                <span class="eq-bar" style="--bar-h:32px;--bar-speed:0.9s;--bar-delay:0.2s"></span>
+                <span class="eq-bar" style="--bar-h:16px;--bar-speed:0.7s;--bar-delay:0.15s"></span>
+                <span class="eq-bar" style="--bar-h:24px;--bar-speed:0.85s;--bar-delay:0.05s"></span>
+                <span class="eq-bar" style="--bar-h:28px;--bar-speed:0.75s;--bar-delay:0.25s"></span>
+                <span class="eq-bar" style="--bar-h:18px;--bar-speed:0.65s;--bar-delay:0.1s"></span>
+                <span class="eq-bar" style="--bar-h:30px;--bar-speed:0.95s;--bar-delay:0.2s"></span>
+                <span class="eq-bar" style="--bar-h:22px;--bar-speed:0.7s;--bar-delay:0.3s"></span>
+            </div>
+            <h2 class="text-[28px] font-bold text-center text-neon-pink login-title-glow mb-6" style="animation:neonTitlePulse 2s ease-in-out infinite;">
+                <i class="fa fa-music mr-2"></i>霓虹畅听
+            </h2>
+            <style>
+                @keyframes neonTitlePulse {
+                    0%,
+                    100% {
+                        text-shadow: 0 0 8px #ff2e88, 0 0 16px #ff2e88, 0 0 32px rgba(255, 46, 136, 0.4);
+                    }
+                    50% {
+                        text-shadow: 0 0 12px #ff2e88, 0 0 24px #ff2e88, 0 0 48px rgba(255, 46, 136, 0.6), 0 0 64px rgba(255, 46, 136, 0.2);
+                    }
+                }
+            </style>
+            <div class="space-y-5">
+                <div>
+                    <label class="block mb-1 text-gray-300 text-sm">账号</label>
+                    <input class="input-neon" id="login-username" placeholder="admin / user01" />
+                </div>
+                <div>
+                    <label class="block mb-1 text-gray-300 text-sm">密码</label>
+                    <input class="input-neon" id="login-pwd" onkeyup="if(event.key==='Enter')login()" placeholder="统一 123456" type="password" />
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button class="btn-neon-pink flex-1" id="login-btn" onclick="login()">
+                        <i class="fa fa-sign-in mr-1" id="login-btn-icon"></i>
+                        <span id="login-btn-text">登录进入</span>
+                    </button>
+                    <button class="btn-outline-glass flex-1" onclick="showRegister()">注册账号</button>
+                </div>
+                <p class="text-gray-400 text-xs text-center mt-3 opacity-60">管理员：admin | 普通用户：user01</p>
+            </div>
+            <div class="hidden mt-6 pt-6 border-t border-gray-700/40 space-y-4" id="register-box">
+                <h3 class="text-lg text-neon-blue">新用户注册</h3>
+                <input class="input-neon" id="reg-user" placeholder="账号" />
+                <input class="input-neon" id="reg-nick" placeholder="昵称" />
+                <input class="input-neon" id="reg-pwd" placeholder="密码" type="password" />
+                <button class="btn-neon-blue w-full" onclick="register()">完成注册</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ 客户端视图 ============ -->
+    <div class="hidden client-bg" id="page-client">
+        <!-- 导航栏 -->
+        <nav class="glass-strong fixed top-0 left-0 right-0 z-40 px-6 py-3 flex justify-between items-center nav-glow" style="backdrop-filter:blur(20px);">
+            <h1 class="text-xl font-bold text-neon-pink flex items-center gap-2">
+                <i class="fa fa-music"></i>
+                <span class="bg-gradient-to-r from-neon-pink to-neon-purple bg-clip-text text-transparent">霓虹音乐</span>
+            </h1>
+            <div class="flex items-center gap-4">
+                <div class="relative hidden sm:block">
+                    <input class="input-neon rounded-full pl-10 pr-4 py-2 w-56 text-sm" id="search-key" onkeyup="if(event.key==='Enter')searchMusic()" placeholder="搜索歌曲 / 歌手" style="padding-left:38px;" />
+                    <i class="fa fa-search absolute left-3 top-2.5 text-gray-500 text-sm"></i>
+                </div>
+                <span class="text-sm text-gray-300 hidden sm:inline" id="client-nick"></span>
+                <button class="nav-item text-sm text-gray-300 hover:text-white transition" onclick="goMyCollect()"><i class="fa fa-heart mr-1"></i><span class="hidden sm:inline">收藏</span></button>
+                <button class="nav-item text-sm text-gray-300 hover:text-white transition" onclick="goMyPlaylist()"><i class="fa fa-list mr-1"></i><span class="hidden sm:inline">歌单</span></button>
+                <button class="text-sm text-red-400/70 hover:text-red-400 transition" onclick="logout()"><i class="fa fa-sign-out"></i> <span class="hidden sm:inline">退出</span></button>
+            </div>
+        </nav>
+
+        <main class="pt-20 pb-28 px-4 sm:px-6 max-w-7xl mx-auto">
+            <!-- 分类标签 -->
+            <div class="flex gap-2 my-5 overflow-x-auto scrollbar-hide pb-1" id="category-tabs"></div>
+
+            <!-- 歌曲网格 -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-5" id="music-list-client"></div>
+
+            <!-- 评论区 -->
+            <div class="hidden mt-10" id="comment-section">
+                <div class="glass-strong rounded-2xl p-5 md:p-6" style="border-color:rgba(0,240,255,0.08);">
+                    <div class="flex justify-between items-center mb-5">
+                        <h3 class="text-lg text-neon-blue font-medium"><i class="fa fa-comments mr-2"></i>评论 · <span class="text-white" id="comment-song-title"></span></h3>
+                        <button class="text-gray-500 hover:text-white transition text-lg" onclick="closeComment()"><i class="fa fa-times"></i></button>
+                    </div>
+                    <div class="flex gap-2 mb-5">
+                        <input class="input-neon flex-1" id="comment-input" placeholder="写下你的评论…" />
+                        <button class="btn-neon-blue px-5 py-2 rounded-lg" onclick="postComment()">发表</button>
+                    </div>
+                    <div class="space-y-3 max-h-80 overflow-y-auto scrollbar-hide" id="comment-list"></div>
+                </div>
+            </div>
+
+            <!-- 收藏页 -->
+            <div class="hidden mt-8" id="collect-page">
+                <div class="flex justify-between items-center mb-5">
+                    <h2 class="text-2xl font-semibold text-neon-blue flex items-center gap-2"><i class="fa fa-heart"></i>我的收藏</h2>
+                    <button class="text-gray-500 hover:text-white transition" onclick="closeCollect()"><i class="fa fa-times"></i> 关闭</button>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 collection-grid" id="collect-list"></div>
+            </div>
+
+            <!-- 歌单页 -->
+            <div class="hidden mt-8" id="playlist-section">
+                <div class="flex flex-wrap justify-between items-center gap-3 mb-5">
+                    <h2 class="text-2xl font-semibold text-neon-purple flex items-center gap-2"><i class="fa fa-list"></i>我的歌单</h2>
+                    <div class="flex gap-2">
+                        <button class="btn-neon-purple px-4 py-2 rounded-lg text-sm" onclick="openCreatePlaylist()"><i class="fa fa-plus mr-1"></i>新建歌单</button>
+                        <button class="text-gray-500 hover:text-white transition text-sm" onclick="closePlaylist()"><i class="fa fa-times"></i> 关闭</button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 collection-grid" id="playlist-overview"></div>
+                <div class="hidden mt-6" id="playlist-detail">
+                    <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
+                        <h3 class="text-lg text-neon-blue font-medium"><i class="fa fa-music mr-2"></i><span id="playlist-detail-title"></span></h3>
+                        <button class="text-gray-500 hover:text-white transition text-sm" onclick="closePlaylistDetail()"><i class="fa fa-arrow-left mr-1"></i>返回歌单列表</button>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 collection-grid" id="playlist-songs-list"></div>
+                </div>
+            </div>
+        </main>
+
+        <!-- 底部播放器 -->
+        <div class="player-bar fixed bottom-0 left-0 right-0 z-50 py-3 px-4 sm:px-6">
+            <audio id="audio-player" preload="auto"></audio>
+            <div class="flex items-center justify-between max-w-7xl mx-auto gap-3">
+                <!-- 左侧：封面 + 信息 -->
+                <div class="flex items-center gap-3 min-w-0 flex-1 sm:flex-none sm:w-1/4">
+                    <img class="w-12 h-12 rounded-lg object-cover flex-shrink-0" id="play-cover" src="" />
+                    <div class="min-w-0 hidden sm:block">
+                        <h4 class="font-medium text-sm truncate" id="play-title"></h4>
+                        <p class="text-xs text-gray-400 truncate" id="play-singer"></p>
+                    </div>
+                </div>
+
+                <!-- 中间：控制区 -->
+                <div class="flex flex-col items-center flex-1 max-w-md">
+                    <div class="flex items-center gap-3 sm:gap-4">
+                        <div class="control-btn" onclick="prevSong()"><i class="fa fa-step-backward"></i></div>
+                        <div class="control-btn play-btn" id="play-btn" onclick="togglePlay()"><i class="fa fa-play"></i></div>
+                        <div class="control-btn" onclick="nextSong()"><i class="fa fa-step-forward"></i></div>
+                        <button class="control-btn hidden sm:flex text-sm" onclick="toggleLyrics()" title="歌词"><i class="fa fa-file-text-o"></i></button>
+                    </div>
+                    <div class="w-full flex items-center gap-3 mt-1.5">
+                        <span class="text-xs text-gray-500 tabular-nums" id="play-current">0:00</span>
+                        <div class="progress-track flex-1" id="progress-wrap" onclick="seekAudio(event)">
+                            <div class="progress-fill" id="progress-bar"></div>
+                        </div>
+                        <span class="text-xs text-gray-500 tabular-nums" id="play-duration">0:00</span>
+                    </div>
+                </div>
+
+                <!-- 右侧：音量 -->
+                <div class="flex items-center gap-2 sm:gap-3 flex-1 justify-end sm:w-1/4">
+                    <i class="fa fa-volume-up text-gray-400 text-sm hidden sm:inline"></i>
+                    <input class="w-16 sm:w-24 accent-neon-pink bg-transparent" id="volume-slider" max="100" min="0" oninput="changeVolume(this.value)" style="accent-color:#ff2e88;" type="range" value="70" />
+                </div>
+            </div>
+        </div>
+
+        <!-- 歌词面板 -->
+        <div class="hidden-panel fixed left-0 right-0 z-[45]" id="lyric-panel" style="bottom:76px;height:calc(100vh - 200px);">
+            <div class="flex flex-col h-full max-w-3xl mx-auto px-4 sm:px-6">
+                <div class="flex items-center justify-between py-3 border-b border-white/5 flex-shrink-0">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <img class="w-10 h-10 rounded-lg object-cover flex-shrink-0" id="lyric-cover" src="" />
+                        <div class="min-w-0">
+                            <h3 class="text-sm font-medium text-neon-pink truncate" id="lyric-title"></h3>
+                            <p class="text-xs text-gray-400 truncate" id="lyric-singer"></p>
+                        </div>
+                    </div>
+                    <button class="text-gray-500 hover:text-white transition text-lg flex-shrink-0" onclick="toggleLyrics()"><i class="fa fa-chevron-down"></i></button>
+                </div>
+                <div class="flex-1 overflow-y-auto py-8 scrollbar-hide" id="lyric-scroll" style="scroll-behavior:smooth;">
+                    <div class="space-y-3 text-center text-base sm:text-lg leading-relaxed" id="lyric-content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ 管理员后台 ============ -->
+    <div class="hidden" id="page-admin">
+        <div class="flex min-h-screen">
+            <aside class="w-64 glass-strong fixed h-full p-5 border-r border-white/5 overflow-y-auto scrollbar-hide">
+                <h2 class="text-xl font-bold text-neon-pink mb-8"><i class="fa fa-cog mr-2"></i>音乐管理后台</h2>
+                <ul class="space-y-1">
+                    <li class="admin-menu px-4 py-2.5 rounded-lg cursor-pointer hover:bg-white/5 transition text-sm" onclick="switchAdminTab('dashboard')"><i class="fa fa-bar-chart mr-2"></i>数据概览</li>
+                    <li class="admin-menu px-4 py-2.5 rounded-lg cursor-pointer hover:bg-white/5 transition text-sm" onclick="switchAdminTab('music')"><i class="fa fa-music mr-2"></i>歌曲管理</li>
+                    <li class="admin-menu px-4 py-2.5 rounded-lg cursor-pointer hover:bg-white/5 transition text-sm" onclick="switchAdminTab('category')"><i class="fa fa-tags mr-2"></i>分类管理</li>
+                    <li class="admin-menu px-4 py-2.5 rounded-lg cursor-pointer hover:bg-white/5 transition text-sm" onclick="switchAdminTab('user')"><i class="fa fa-users mr-2"></i>用户管理</li>
+                    <li class="admin-menu px-4 py-2.5 rounded-lg cursor-pointer hover:bg-white/5 transition text-sm" onclick="switchAdminTab('comment')"><i class="fa fa-comments mr-2"></i>评论管理</li>
+                    <li class="admin-menu px-4 py-2.5 rounded-lg cursor-pointer hover:bg-white/5 transition text-sm" onclick="switchAdminTab('playlist')"><i class="fa fa-list mr-2"></i>歌单管理</li>
+                    <li class="mt-8 pt-4 border-t border-white/5">
+                        <button class="w-full text-red-400/70 hover:text-red-400 px-4 py-2.5 text-left text-sm hover:bg-red-500/10 rounded-lg transition" onclick="logout()">
+                            <i class="fa fa-sign-out mr-2"></i>退出登录
+                        </button>
+                    </li>
+                </ul>
+            </aside>
+            <section class="ml-64 flex-1 p-6 sm:p-8">
+                <div class="admin-content" id="admin-dashboard">
+                    <h3 class="text-2xl mb-6 text-neon-blue font-semibold">运营数据总览</h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+                        <div class="glass-strong p-5 rounded-xl" style="border-color:rgba(255,46,136,0.1);"><p class="text-gray-400 text-sm">总歌曲</p><p class="text-3xl font-bold text-neon-pink" id="stat-music">0</p></div>
+                        <div class="glass-strong p-5 rounded-xl" style="border-color:rgba(0,240,255,0.1);"><p class="text-gray-400 text-sm">总用户</p><p class="text-3xl font-bold text-neon-blue" id="stat-user">0</p></div>
+                        <div class="glass-strong p-5 rounded-xl" style="border-color:rgba(147,51,234,0.1);"><p class="text-gray-400 text-sm">总播放量</p><p class="text-3xl font-bold text-neon-purple" id="stat-play">0</p></div>
+                        <div class="glass-strong p-5 rounded-xl" style="border-color:rgba(236,72,153,0.1);"><p class="text-gray-400 text-sm">收藏总数</p><p class="text-3xl font-bold text-pink-400" id="stat-collect">0</p></div>
+                    </div>
+                    <div class="glass-strong p-6 rounded-xl"><canvas id="data-chart"></canvas></div>
+                </div>
+                <div class="admin-content hidden" id="admin-music">
+                    <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
+                        <h3 class="text-2xl text-neon-blue font-semibold">歌曲列表</h3>
+                        <button class="btn-neon-pink px-5 py-2 rounded-lg text-sm" onclick="openMusicModal()"><i class="fa fa-plus mr-1"></i>新增歌曲</button>
+                    </div>
+                    <div class="glass-strong rounded-xl overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-white/5"><tr><th class="p-4">ID</th><th class="p-4">封面</th><th class="p-4">歌名</th><th class="p-4">歌手</th><th class="p-4">分类</th><th class="p-4">播放/收藏</th><th class="p-4">状态</th><th class="p-4">操作</th></tr></thead>
+                            <tbody id="music-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="admin-content hidden" id="admin-category">
+                    <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
+                        <h3 class="text-2xl text-neon-blue font-semibold">分类管理</h3>
+                        <button class="btn-neon-pink px-5 py-2 rounded-lg text-sm" onclick="openCategoryModal()"><i class="fa fa-plus mr-1"></i>新增分类</button>
+                    </div>
+                    <div class="glass-strong rounded-xl overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-white/5"><tr><th class="p-4">ID</th><th class="p-4">名称</th><th class="p-4">颜色</th><th class="p-4">排序</th><th class="p-4">操作</th></tr></thead>
+                            <tbody id="category-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="admin-content hidden" id="admin-user">
+                    <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
+                        <h3 class="text-2xl text-neon-blue font-semibold">用户管理</h3>
+                    </div>
+                    <div class="glass-strong rounded-xl overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-white/5"><tr><th class="p-4">ID</th><th class="p-4">账号</th><th class="p-4">昵称</th><th class="p-4">角色</th><th class="p-4">状态</th><th class="p-4">操作</th></tr></thead>
+                            <tbody id="user-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="admin-content hidden" id="admin-comment">
+                    <div class="flex flex-wrap justify-between items-center gap-3 mb-6"><h3 class="text-2xl text-neon-blue font-semibold">评论管理</h3></div>
+                    <div class="glass-strong rounded-xl overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-white/5"><tr><th class="p-4">ID</th><th class="p-4">用户ID</th><th class="p-4">歌曲ID</th><th class="p-4">内容</th><th class="p-4">点赞</th><th class="p-4">操作</th></tr></thead>
+                            <tbody id="comment-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="admin-content hidden" id="admin-playlist">
+                    <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
+                        <h3 class="text-2xl text-neon-blue font-semibold">歌单管理</h3>
+                        <button class="btn-neon-pink px-5 py-2 rounded-lg text-sm" onclick="openAdminPlaylistModal()"><i class="fa fa-plus mr-1"></i>新增歌单</button>
+                    </div>
+                    <div class="glass-strong rounded-xl overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-white/5"><tr><th class="p-4">ID</th><th class="p-4">歌单名</th><th class="p-4">创建者ID</th><th class="p-4">简介</th><th class="p-4">操作</th></tr></thead>
+                            <tbody id="playlist-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- ============ 弹窗：新增/编辑歌曲 ============ -->
+    <div class="fixed inset-0 bg-black/70 z-[100] hidden flex items-center justify-center p-4" id="music-modal">
+        <div class="glass-strong w-full max-w-lg rounded-2xl p-6 max-h-[90vh] overflow-y-auto scrollbar-hide" style="border-color:rgba(255,46,136,0.15);">
+            <h4 class="text-xl mb-5 text-neon-pink font-semibold" id="modal-title">新增歌曲</h4>
+            <input id="edit-music-id" type="hidden" />
+            <div class="space-y-4">
+                <div><label class="text-sm text-gray-300">歌曲名称</label><input class="input-neon mt-1" id="m-title" /></div>
+                <div><label class="text-sm text-gray-300">歌手</label><input class="input-neon mt-1" id="m-singer" /></div>
+                <div><label class="text-sm text-gray-300">分类</label><select class="input-neon mt-1" id="m-cid"></select></div>
+                <div>
+                    <label class="text-sm text-gray-300">封面图片</label>
+                    <div class="flex gap-2 mt-1">
+                        <label class="flex-1 bg-black/30 border border-dashed border-gray-600 rounded-lg px-3 py-3 text-center cursor-pointer hover:border-neon-blue transition relative overflow-hidden text-sm">
+                            <i class="fa fa-cloud-upload mr-1"></i>
+                            <span id="cover-file-name">点击选择本地图片</span>
+                            <input accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer" id="m-cover-file" onchange="onCoverFileSelected(this)" type="file" />
+                        </label>
+                        <img class="w-16 h-16 rounded object-cover border border-gray-600 hidden" id="cover-preview" src="" />
+                    </div>
+                    <div class="flex items-center gap-2 mt-2">
+                        <span class="text-xs text-gray-500">或填链接:</span>
+                        <input class="input-neon flex-1 text-sm" id="m-cover" placeholder="https://..." />
+                    </div>
+                </div>
+                <div>
+                    <label class="text-sm text-gray-300">音频文件</label>
+                    <div class="flex gap-2 mt-1">
+                        <label class="flex-1 bg-black/30 border border-dashed border-gray-600 rounded-lg px-3 py-3 text-center cursor-pointer hover:border-neon-blue transition relative overflow-hidden text-sm">
+                            <i class="fa fa-music mr-1"></i>
+                            <span id="audio-file-name">点击选择本地音频文件</span>
+                            <input accept="audio/*" class="absolute inset-0 opacity-0 cursor-pointer" id="m-audio-file" onchange="onAudioFileSelected(this)" type="file" />
+                        </label>
+                    </div>
+                    <div class="flex items-center gap-2 mt-2">
+                        <span class="text-xs text-gray-500">或填链接:</span>
+                        <input class="input-neon flex-1 text-sm" id="m-src" placeholder="https://..." />
+                    </div>
+                </div>
+                <div><label class="text-sm text-gray-300">歌曲时长</label><input class="input-neon mt-1" id="m-time" placeholder="03:30" /></div>
+                <div><label class="text-sm text-gray-300">歌词 <span class="text-xs text-gray-500">（支持 LRC 时间戳）</span></label><textarea class="input-neon mt-1 font-mono text-sm" id="m-lyric" placeholder="[00:00.00]歌曲开始&#10;[00:12.34]第一句歌词" rows="5"></textarea></div>
+            </div>
+            <div class="hidden mt-3" id="upload-progress">
+                <div class="flex items-center gap-2 text-sm text-neon-blue"><i class="fa fa-spinner fa-spin"></i><span id="upload-status">正在上传文件...</span></div>
+                <div class="w-full bg-gray-700 rounded-full h-1.5 mt-1"><div class="bg-neon-blue h-full rounded-full transition-all" id="upload-bar" style="width:0%"></div></div>
+            </div>
+            <div class="flex gap-4 mt-6">
+                <button class="flex-1 py-2 border border-gray-600 rounded-lg hover:bg-white/5 transition text-sm" onclick="closeMusicModal()">取消</button>
+                <button class="flex-1 btn-neon-pink py-2 rounded-lg text-sm" id="save-music-btn" onclick="saveMusic()">保存提交</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ 弹窗：新增/编辑分类 ============ -->
+    <div class="fixed inset-0 bg-black/70 z-[100] hidden flex items-center justify-center p-4" id="category-modal">
+        <div class="glass-strong w-full max-w-md rounded-2xl p-6" style="border-color:rgba(0,240,255,0.15);">
+            <h4 class="text-xl mb-5 text-neon-blue font-semibold" id="cat-modal-title">新增分类</h4>
+            <input id="edit-cat-id" type="hidden" />
+            <div class="space-y-4">
+                <div><label class="text-sm text-gray-300">分类名称</label><input class="input-neon mt-1" id="c-name" /></div>
+                <div><label class="text-sm text-gray-300">主题色</label><input class="input-neon mt-1" id="c-color" placeholder="#ec4899" /></div>
+                <div><label class="text-sm text-gray-300">排序权重</label><input class="input-neon mt-1" id="c-sort" type="number" value="0" /></div>
+            </div>
+            <div class="flex gap-4 mt-6">
+                <button class="flex-1 py-2 border border-gray-600 rounded-lg hover:bg-white/5 transition text-sm" onclick="closeCategoryModal()">取消</button>
+                <button class="flex-1 btn-neon-blue py-2 rounded-lg text-sm" onclick="saveCategory()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ 弹窗：新建歌单 ============ -->
+    <div class="fixed inset-0 bg-black/70 z-[100] hidden flex items-center justify-center p-4" id="playlist-modal">
+        <div class="glass-strong w-full max-w-md rounded-2xl p-6" style="border-color:rgba(147,51,234,0.15);">
+            <h4 class="text-xl mb-5 text-neon-purple font-semibold"><i class="fa fa-plus-circle mr-2"></i>新建歌单</h4>
+            <div class="space-y-4">
+                <div><label class="text-sm text-gray-300">歌单名称</label><input class="input-neon mt-1" id="pl-title" placeholder="我的歌单" /></div>
+                <div><label class="text-sm text-gray-300">歌单简介</label><textarea class="input-neon mt-1" id="pl-desc" placeholder="介绍一下这个歌单…" rows="2"></textarea></div>
+            </div>
+            <div class="flex gap-4 mt-6">
+                <button class="flex-1 py-2 border border-gray-600 rounded-lg hover:bg-white/5 transition text-sm" onclick="closeCreatePlaylist()">取消</button>
+                <button class="flex-1 btn-neon-purple py-2 rounded-lg text-sm" onclick="createPlaylist()">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ 弹窗：添加到歌单 ============ -->
+    <div class="fixed inset-0 bg-black/70 z-[100] hidden flex items-center justify-center p-4" id="add-to-playlist-modal">
+        <div class="glass-strong w-full max-w-md rounded-2xl p-6" style="border-color:rgba(147,51,234,0.15);">
+            <h4 class="text-xl mb-5 text-neon-purple font-semibold"><i class="fa fa-plus-square mr-2"></i>添加到歌单</h4>
+            <div class="space-y-2 max-h-60 overflow-y-auto" id="add-to-playlist-list"></div>
+            <div class="mt-4 pt-3 border-t border-white/5"><button class="w-full text-sm text-gray-500 hover:text-white transition" onclick="closeAddToPlaylist()">关闭</button></div>
+        </div>
+    </div>
+
+    <!-- ============ 弹窗：管理员新增歌单 ============ -->
+    <div class="fixed inset-0 bg-black/70 z-[100] hidden flex items-center justify-center p-4" id="admin-playlist-modal">
+        <div class="glass-strong w-full max-w-md rounded-2xl p-6" style="border-color:rgba(255,46,136,0.15);">
+            <h4 class="text-xl mb-5 text-neon-pink font-semibold"><i class="fa fa-plus-circle mr-2"></i>新增歌单</h4>
+            <div class="space-y-4">
+                <div><label class="text-sm text-gray-300">歌单名称</label><input class="input-neon mt-1" id="admin-pl-title" /></div>
+                <div><label class="text-sm text-gray-300">创建者用户ID</label><input class="input-neon mt-1" id="admin-pl-uid" type="number" /></div>
+                <div><label class="text-sm text-gray-300">歌单简介</label><textarea class="input-neon mt-1" id="admin-pl-desc" rows="2"></textarea></div>
+            </div>
+            <div class="flex gap-4 mt-6">
+                <button class="flex-1 py-2 border border-gray-600 rounded-lg hover:bg-white/5 transition text-sm" onclick="closeAdminPlaylistModal()">取消</button>
+                <button class="flex-1 btn-neon-pink py-2 rounded-lg text-sm" onclick="saveAdminPlaylist()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ Toast ============ -->
+    <div class="fixed top-6 left-1/2 -translate-x-1/2 z-[200] hidden transition-all duration-300" id="toast">
+        <div class="glass-strong rounded-xl px-5 py-3 text-sm shadow-2xl flex items-center gap-2" style="border-color:rgba(0,240,255,0.1);">
+            <i class="fa fa-info-circle text-neon-blue" id="toast-icon"></i>
+            <span id="toast-msg"></span>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ============================================================
+    //  所有 JavaScript 逻辑保持不变（仅微调了渲染样式）
+    // ============================================================
+    const API = '/api';
+    let loginUser = null;
+    let categories = [];
+    let musicList = [];
+    let allMusicList = [];
+    let musicMap = {};
+    let playIndex = 0;
+    let isPlay = false;
+    let chartInstance = null;
+    let commentMusicId = null;
+    let addSongId = null;
+    let myPlaylists = [];
+    let currentPlaylistId = null;
+    let lyricLines = [];
+    let hasTimestamp = false;
+    let currentLyricIdx = -1;
+    let lyricPanelOpen = false;
+
+    // ===== 通用请求 =====
+    async function request(url, method = 'GET', body = null) {
+        const opts = { method, headers: { 'Content-Type': 'application/json' } };
+        if (body) opts.body = JSON.stringify(body);
+        try {
+            const res = await fetch(API + url, opts);
+            return await res.json();
+        } catch (e) {
+            console.error('[request]', url, e);
+            return { code: 500, message: '网络请求失败: ' + e.message };
+        }
+    }
+
+    // ===== Toast =====
+    let toastTimer = null;
+
+    function showToast(msg, type = 'info') {
+        const toast = document.getElementById('toast');
+        const icon = document.getElementById('toast-icon');
+        const msgEl = document.getElementById('toast-msg');
+        msgEl.innerText = msg;
+        icon.className = type === 'error' ? 'fa fa-times-circle text-red-400' :
+            type === 'warning' ? 'fa fa-exclamation-triangle text-yellow-400' :
+                type === 'success' ? 'fa fa-check-circle text-green-400' :
+                    'fa fa-info-circle text-neon-blue';
+        toast.classList.remove('hidden');
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+    }
+
+    // ===== 登录注册 =====
+    async function login() {
+        const username = document.getElementById('login-username').value.trim();
+        const password = document.getElementById('login-pwd').value.trim();
+        if (!username || !password) { showToast('请输入账号和密码', 'warning'); return; }
+        const btn = document.getElementById('login-btn');
+        const btnIcon = document.getElementById('login-btn-icon');
+        const btnText = document.getElementById('login-btn-text');
+        btn.classList.add('loading');
+        btnIcon.className = 'fa fa-spinner fa-spin mr-1';
+        btnText.innerText = '正在登录...';
+        const r = await request('/user/login', 'POST', { username, password });
+        if (r.code !== 200) {
+            btn.classList.remove('loading');
+            btnIcon.className = 'fa fa-sign-in mr-1';
+            btnText.innerText = '登录进入';
+            const card = document.getElementById('login-card');
+            card.style.animation = 'none';
+            card.offsetHeight;
+            card.style.animation = 'shake 0.4s ease';
+            showToast(r.message, 'error');
+            return;
+        }
+        loginUser = r.data;
+        btnIcon.className = 'fa fa-check mr-1';
+        btnText.innerText = '欢迎，' + loginUser.nickname;
+        btn.classList.remove('loading');
+        btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+        const card = document.getElementById('login-card');
+        card.classList.remove('login-card-enter');
+        card.classList.add('login-card-exit');
+        setTimeout(async () => {
+            hideAllPage();
+            if (loginUser.role === 1) {
+                document.getElementById('page-admin').classList.remove('hidden');
+                await loadAdminData();
+            } else {
+                document.getElementById('page-client').classList.remove('hidden');
+                document.getElementById('client-nick').innerText = loginUser.nickname;
+                await loadClientData();
+            }
+            card.classList.remove('login-card-exit');
+            card.classList.add('login-card-enter');
+            btn.style.background = '';
+            btnIcon.className = 'fa fa-sign-in mr-1';
+            btnText.innerText = '登录进入';
+        }, 650);
+    }
+
+    async function register() {
+        const username = document.getElementById('reg-user').value.trim();
+        const nickname = document.getElementById('reg-nick').value.trim();
+        const password = document.getElementById('reg-pwd').value.trim();
+        if (!username || !nickname || !password) { alert('请填写完整信息'); return; }
+        const r = await request('/user/register', 'POST', { username, nickname, password });
+        if (r.code !== 200) { alert(r.message); return; }
+        alert('注册成功，请登录');
+        document.getElementById('register-box').classList.add('hidden');
+    }
+
+    function showRegister() { document.getElementById('register-box').classList.toggle('hidden'); }
+
+    function logout() {
+        loginUser = null;
+        hideAllPage();
+        const card = document.getElementById('login-card');
+        card.classList.remove('login-card-enter');
+        card.offsetHeight;
+        card.classList.add('login-card-enter');
+        document.getElementById('page-login').classList.remove('hidden');
+        // 重置播放器状态
+        const audio = document.getElementById('audio-player');
+        if (audio) { audio.pause();
+            audio.src = ''; }
+        document.getElementById('play-btn').className = 'fa fa-play text-2xl cursor-pointer hover:text-neon-pink';
+        isPlay = false;
+    }
+
+    function hideAllPage() {
+        document.getElementById('page-login').classList.add('hidden');
+        document.getElementById('page-client').classList.add('hidden');
+        document.getElementById('page-admin').classList.add('hidden');
+    }
+
+    // ===== 客户端 =====
+    async function loadClientData() {
+        const catRes = await request('/category/list');
+        categories = catRes.data || [];
+        const musicRes = await request('/music/active');
+        allMusicList = musicRes.data || [];
+        musicList = allMusicList;
+        rebuildMusicMap(allMusicList);
+        renderCategoryTab();
+        renderClientMusic();
+        initAudioEvents();
+    }
+
+    function rebuildMusicMap(list) {
+        musicMap = {};
+        list.forEach(m => { musicMap[m.id] = m; });
+        allMusicList.forEach(m => { musicMap[m.id] = m; });
+    }
+
+    function initAudioEvents() {
+        const audioPlayer = document.getElementById('audio-player');
+        audioPlayer.addEventListener('timeupdate', () => {
+            if (audioPlayer.duration) {
+                const pct = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+                document.getElementById('progress-bar').style.width = pct + '%';
+                const cur = formatTime(audioPlayer.currentTime);
+                document.getElementById('play-current').innerText = cur;
+                if (hasTimestamp && lyricPanelOpen) updateLyricHighlight(audioPlayer.currentTime);
+            }
+        });
+        audioPlayer.addEventListener('loadedmetadata', () => {
+            document.getElementById('play-duration').innerText = formatTime(audioPlayer.duration);
+        });
+        audioPlayer.addEventListener('ended', () => { nextSong(); });
+        audioPlayer.addEventListener('error', (e) => {
+            console.error('[audio]', audioPlayer.src, e);
+            showToast('音频加载失败，请检查文件', 'error');
+        });
+        audioPlayer.volume = 0.7;
+        document.getElementById('play-duration').innerText = '0:00';
+    }
+
+    function formatTime(sec) {
+        if (!sec || isNaN(sec)) return '0:00';
+        const m = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60);
+        return m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    function renderCategoryTab() {
+        const wrap = document.getElementById('category-tabs');
+        wrap.innerHTML =
+            `<span class="category-tag px-4 py-2 rounded-full text-sm active" onclick="filterMusic(0)">🎵 全部</span>`;
+        categories.forEach(c => {
+            wrap.innerHTML +=
+                `<span class="category-tag px-4 py-2 rounded-full text-sm" style="border-color:${c.color}40;" onclick="filterMusic(${c.id})">${c.name}</span>`;
+        });
+    }
+
+    function renderClientMusic(list) {
+        if (!list) list = musicList.filter(m => m.status == 1);
+        musicList = list;
+        rebuildMusicMap(list);
+        const wrap = document.getElementById('music-list-client');
+        wrap.innerHTML = '';
+        if (list.length === 0) { wrap.innerHTML =
+            '<p class="text-gray-500 col-span-full text-center py-16 text-sm">✨ 暂无歌曲，去别处逛逛吧</p>'; return; }
+        list.forEach(m => {
+            const isLiked = false; // 实际可调接口查
+            wrap.innerHTML += `
+                <div class="music-card group" onclick="playMusic(${m.id})">
+                    <div class="card-cover">
+                        <img src="${m.cover || 'https://picsum.photos/300/300?random=' + m.id}" loading="lazy" />
+                        <div class="play-overlay"><i class="fa fa-play-circle"></i></div>
+                    </div>
+                    <div class="card-body">
+                        <div class="title">${escapeHtml(m.title)}</div>
+                        <div class="singer">${escapeHtml(m.singer)}</div>
+                        <div class="card-footer">
+                            <span><i class="fa fa-play-circle mr-1 text-xs"></i>${m.playCount || 0}</span>
+                            <div class="action-icons">
+                                <i class="fa fa-comment-o" title="评论" onclick="event.stopPropagation();openComment(${m.id},'${(m.title||'').replace(/'/g,"\\'")}')"></i>
+                                <i class="fa fa-plus-square-o" title="添加到歌单" onclick="event.stopPropagation();showAddToPlaylist(${m.id})"></i>
+                                <i class="fa fa-heart ${isLiked?'liked':''}" title="收藏" onclick="event.stopPropagation();collectMusic(${m.id})"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+        });
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    async function playMusic(mid) {
+        let m = musicMap[mid] || musicList.find(x => x.id == mid) || allMusicList.find(x => x.id == mid);
+        if (!m) { showToast('找不到该歌曲', 'warning'); return; }
+        playIndex = musicList.findIndex(x => x.id == mid);
+        if (playIndex < 0) playIndex = 0;
+        document.getElementById('play-cover').src = m.cover || '';
+        document.getElementById('play-title').innerText = m.title || '';
+        document.getElementById('play-singer').innerText = m.singer || '';
+        isPlay = true;
+        document.getElementById('play-btn').innerHTML = '<i class="fa fa-pause"></i>';
+        currentLyricIdx = -1;
+        lyricLines = parseLyrics(m.lyric || '');
+        renderLyricsPanel(m);
+        if (lyricLines.length > 0 && !lyricPanelOpen) toggleLyrics();
+        const audioPlayer = document.getElementById('audio-player');
+        if (m.src) {
+            audioPlayer.src = m.src;
+            audioPlayer.load();
+            const playPromise = audioPlayer.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(e => { console.error('[play]', e);
+                    showToast('播放失败: ' + e.message, 'error'); });
+            }
+        } else {
+            showToast('该歌曲暂无音频文件', 'warning');
+        }
+        request('/music/play/' + mid, 'PUT');
+    }
+
+    function togglePlay() {
+        isPlay = !isPlay;
+        const audioPlayer = document.getElementById('audio-player');
+        if (isPlay) { audioPlayer.play().catch(() => {}); } else { audioPlayer.pause(); }
+        document.getElementById('play-btn').innerHTML = isPlay ? '<i class="fa fa-pause"></i>' : '<i class="fa fa-play"></i>';
+    }
+
+    function prevSong() { if (musicList.length === 0) return;
+        playIndex = (playIndex - 1 + musicList.length) % musicList.length;
+        playMusic(musicList[playIndex].id); }
+
+    function nextSong() { if (musicList.length === 0) return;
+        playIndex = (playIndex + 1) % musicList.length;
+        playMusic(musicList[playIndex].id); }
+
+    function changeVolume(val) { document.getElementById('audio-player').volume = val / 100; }
+
+    function seekAudio(event) {
+        const audioPlayer = document.getElementById('audio-player');
+        if (!audioPlayer.duration) return;
+        const wrap = document.getElementById('progress-wrap');
+        const rect = wrap.getBoundingClientRect();
+        const pct = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+        audioPlayer.currentTime = pct * audioPlayer.duration;
+        if (hasTimestamp) updateLyricHighlight(audioPlayer.currentTime);
+    }
+
+    // ===== 歌词 =====
+    function parseLyrics(text) {
+        if (!text || !text.trim()) return [];
+        const lrcRegex = /\[(\d{1,2}):(\d{2})([.:](\d{2,3}))?\]/;
+        hasTimestamp = lrcRegex.test(text);
+        if (hasTimestamp) {
+            const lines = text.split('\n');
+            const parsed = [];
+            const timeRegex = /\[(\d{1,2}):(\d{2})([.:](\d{2,3}))?\]/g;
+            lines.forEach(line => {
+                let match;
+                const times = [];
+                while ((match = timeRegex.exec(line)) !== null) {
+                    const min = parseInt(match[1]);
+                    const sec = parseInt(match[2]);
+                    let ms = 0;
+                    if (match[4]) { ms = parseInt(match[4]); if (match[4].length === 2) ms *= 10; }
+                    times.push(min * 60 + sec + ms / 1000);
+                }
+                const lyricText = line.replace(/\[\d{1,2}:\d{2}([.:]\d{2,3})?\]/g, '').trim();
+                if (lyricText && times.length) { times.forEach(t => parsed.push({ time: t, text: lyricText })); }
+            });
+            parsed.sort((a, b) => a.time - b.time);
+            return parsed;
+        } else {
+            return text.split('\n').map(line => line.trim()).filter(line => line.length > 0).map((line, i) => ({ time: -1,
+                text: line }));
+        }
+    }
+
+    function renderLyricsPanel(music) {
+        document.getElementById('lyric-cover').src = music.cover || '';
+        document.getElementById('lyric-title').innerText = music.title || '';
+        document.getElementById('lyric-singer').innerText = music.singer || '';
+        const wrap = document.getElementById('lyric-content');
+        wrap.innerHTML = '';
+        if (lyricLines.length === 0) { wrap.innerHTML =
+            '<p class="text-gray-500 py-20 text-sm">暂无歌词</p>'; return; }
+        let html = '<div class="h-24"></div>';
+        lyricLines.forEach((l, i) => {
+            html +=
+                `<div class="lyric-line py-1 cursor-pointer" id="lyric-${i}" onclick="seekToLyric(${l.time})">${escapeHtml(l.text)}</div>`;
+        });
+        html += '<div class="h-24"></div>';
+        wrap.innerHTML = html;
+    }
+
+    function seekToLyric(time) {
+        if (!hasTimestamp || time < 0) return;
+        const audioPlayer = document.getElementById('audio-player');
+        audioPlayer.currentTime = time;
+        if (!isPlay) togglePlay();
+    }
+
+    function updateLyricHighlight(currentTime) {
+        if (!hasTimestamp || lyricLines.length === 0) return;
+        let idx = -1;
+        for (let i = lyricLines.length - 1; i >= 0; i--) {
+            if (currentTime >= lyricLines[i].time) { idx = i; break; }
+        }
+        if (idx === currentLyricIdx) return;
+        if (currentLyricIdx >= 0) {
+            const oldEl = document.getElementById('lyric-' + currentLyricIdx);
+            if (oldEl) oldEl.classList.remove('active', 'past');
+        }
+        for (let i = 0; i < idx; i++) {
+            const el = document.getElementById('lyric-' + i);
+            if (el) { el.classList.remove('active');
+                el.classList.add('past'); }
+        }
+        currentLyricIdx = idx;
+        if (idx >= 0) {
+            const el = document.getElementById('lyric-' + idx);
+            if (el) {
+                el.classList.remove('past');
+                el.classList.add('active');
+                const scroll = document.getElementById('lyric-scroll');
+                const elTop = el.offsetTop - scroll.offsetTop;
+                const scrollTarget = elTop - scroll.clientHeight / 2 + el.clientHeight / 2;
+                scroll.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' });
+            }
+        }
+    }
+
+    function toggleLyrics() {
+        lyricPanelOpen = !lyricPanelOpen;
+        const panel = document.getElementById('lyric-panel');
+        panel.classList.toggle('hidden-panel', !lyricPanelOpen);
+        if (lyricPanelOpen && hasTimestamp) {
+            const audio = document.getElementById('audio-player');
+            updateLyricHighlight(audio.currentTime);
+        }
+    }
+
+    // ===== 收藏 =====
+    async function collectMusic(mid) {
+        const check = await request('/collect/check/' + loginUser.id + '/' + mid);
+        if (check.data === true) {
+            const r = await request('/collect/' + loginUser.id + '/' + mid, 'DELETE');
+            if (r.code === 200) showToast('已取消收藏', 'info');
+        } else {
+            const r = await request('/collect', 'POST', { userId: loginUser.id, musicId: mid });
+            if (r.code === 200) showToast('收藏成功 ❤️', 'success');
+            else showToast(r.message, 'warning');
+        }
+    }
+
+    async function goMyCollect() {
+        closeAllSections();
+        document.getElementById('collect-page').classList.remove('hidden');
+        const r = await request('/collect/user/' + loginUser.id);
+        const list = r.data || [];
+        musicList = list;
+        const wrap = document.getElementById('collect-list');
+        wrap.innerHTML = '';
+        if (list.length === 0) { wrap.innerHTML =
+            '<p class="text-gray-500 col-span-full text-center py-12 text-sm">💔 还没有收藏，去发现好音乐吧</p>'; return; }
+        list.forEach(m => {
+            wrap.innerHTML += `
+                <div class="item group cursor-pointer" onclick="playMusic(${m.id})">
+                    <img src="${m.cover || 'https://picsum.photos/300/300?random=' + m.id}" class="w-full aspect-square object-cover" />
+                    <div class="p-3">
+                        <p class="font-medium text-sm truncate">${escapeHtml(m.title)}</p>
+                        <p class="text-xs text-gray-500 truncate">${escapeHtml(m.singer)}</p>
+                        <button class="mt-2 text-xs text-red-400/70 hover:text-red-400 transition" onclick="event.stopPropagation();cancelCollect(${m.id})"><i class="fa fa-heart-broken mr-1"></i>取消收藏</button>
+                    </div>
+                </div>`;
+        });
+    }
+
+    async function cancelCollect(mid) {
+        await request('/collect/' + loginUser.id + '/' + mid, 'DELETE');
+        showToast('已取消收藏', 'info');
+        goMyCollect();
+    }
+
+    function closeCollect() { document.getElementById('collect-page').classList.add('hidden'); }
+
+    // ===== 评论 =====
+    async function openComment(mid, title) {
+        commentMusicId = mid;
+        document.getElementById('comment-song-title').innerText = title;
+        document.getElementById('comment-section').classList.remove('hidden');
+        document.getElementById('comment-input').value = '';
+        document.getElementById('comment-section').scrollIntoView({ behavior: 'smooth' });
+        await loadComments(mid);
+    }
+
+    function closeComment() { document.getElementById('comment-section').classList.add('hidden');
+        commentMusicId = null; }
+
+    async function loadComments(mid) {
+        const r = await request('/comment/music/' + mid);
+        const comments = r.data || [];
+        const wrap = document.getElementById('comment-list');
+        wrap.innerHTML = '';
+        if (comments.length === 0) { wrap.innerHTML =
+            '<p class="text-gray-500 text-center py-6 text-sm">💬 还没有评论，来抢沙发吧</p>'; return; }
+        comments.forEach(c => {
+            const time = c.createTime ? new Date(c.createTime).toLocaleString('zh-CN') : '';
+            wrap.innerHTML += `
+                <div class="comment-card flex justify-between items-start">
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm text-gray-200">${escapeHtml(c.content)}</p>
+                        <p class="text-xs text-gray-500 mt-1">用户 ${c.userId} · ${time}</p>
+                    </div>
+                    <button class="flex items-center gap-1 text-xs text-gray-400 hover:text-neon-pink transition ml-3 flex-shrink-0" onclick="likeComment(${c.id})">
+                        <i class="fa fa-thumbs-o-up"></i> ${c.likeNum || 0}
+                    </button>
+                </div>`;
+        });
+    }
+
+    async function postComment() {
+        const content = document.getElementById('comment-input').value.trim();
+        if (!content) { showToast('评论内容不能为空', 'warning'); return; }
+        if (!commentMusicId) { showToast('请先选择歌曲', 'warning'); return; }
+        const r = await request('/comment', 'POST', { userId: loginUser.id, musicId: commentMusicId, content });
+        if (r.code === 200) { showToast('评论发表成功', 'success');
+            document.getElementById('comment-input').value = '';
+            await loadComments(commentMusicId); } else { showToast(r.message, 'error'); }
+    }
+
+    async function likeComment(cid) {
+        const r = await request('/comment/like/' + cid, 'PUT');
+        if (r.code === 200 && commentMusicId) await loadComments(commentMusicId);
+    }
+
+    // ===== 歌单 =====
+    async function goMyPlaylist() {
+        closeAllSections();
+        document.getElementById('playlist-section').classList.remove('hidden');
+        await loadPlaylistsClient();
+    }
+
+    function closePlaylist() { document.getElementById('playlist-section').classList.add('hidden'); }
+
+    async function loadPlaylistsClient() {
+        const r = await request('/playlist/user/' + loginUser.id);
+        myPlaylists = r.data || [];
+        const wrap = document.getElementById('playlist-overview');
+        wrap.innerHTML = '';
+        if (myPlaylists.length === 0) { wrap.innerHTML =
+            '<p class="text-gray-500 col-span-full text-center py-12 text-sm">📭 还没有歌单，点击“新建歌单”创建</p>'; return; }
+        myPlaylists.forEach(p => {
+            wrap.innerHTML += `
+                <div class="item cursor-pointer" onclick="viewPlaylist(${p.id},'${(p.title||'').replace(/'/g,"\\'")}')">
+                    <div class="w-full aspect-square rounded-lg bg-gradient-to-br from-neon-purple/20 to-neon-pink/10 flex items-center justify-center">
+                        <i class="fa fa-music text-4xl text-neon-purple/30"></i>
+                    </div>
+                    <div class="p-3">
+                        <p class="font-medium text-sm truncate">${escapeHtml(p.title)}</p>
+                        <p class="text-xs text-gray-500 truncate">${escapeHtml(p.desc || '暂无简介')}</p>
+                    </div>
+                </div>`;
+        });
+    }
+
+    function openCreatePlaylist() {
+        document.getElementById('playlist-modal').classList.remove('hidden');
+        document.getElementById('pl-title').value = '';
+        document.getElementById('pl-desc').value = '';
+    }
+
+    function closeCreatePlaylist() { document.getElementById('playlist-modal').classList.add('hidden'); }
+
+    async function createPlaylist() {
+        const title = document.getElementById('pl-title').value.trim();
+        if (!title) { showToast('歌单名称不能为空', 'warning'); return; }
+        const r = await request('/playlist', 'POST', { userId: loginUser.id, title, desc: document.getElementById(
+                'pl-desc').value.trim() });
+        if (r.code === 200) { showToast('歌单创建成功', 'success');
+            closeCreatePlaylist();
+            await loadPlaylistsClient(); } else { showToast(r.message, 'error'); }
+    }
+
+    async function viewPlaylist(pid, title) {
+        currentPlaylistId = pid;
+        document.getElementById('playlist-detail').classList.remove('hidden');
+        document.getElementById('playlist-detail-title').innerText = title;
+        const r = await request('/playlist/' + pid + '/songs');
+        const songs = r.data || [];
+        const wrap = document.getElementById('playlist-songs-list');
+        wrap.innerHTML = '';
+        if (songs.length === 0) { wrap.innerHTML =
+            '<p class="text-gray-500 col-span-full text-center py-10 text-sm">🎵 歌单里还没有歌曲</p>'; return; }
+        songs.forEach(m => {
+            wrap.innerHTML += `
+                <div class="item cursor-pointer" onclick="playMusic(${m.id})">
+                    <img src="${m.cover || 'https://picsum.photos/300/300?random=' + m.id}" class="w-full aspect-square object-cover" />
+                    <div class="p-3">
+                        <p class="font-medium text-sm truncate">${escapeHtml(m.title)}</p>
+                        <p class="text-xs text-gray-500 truncate">${escapeHtml(m.singer)}</p>
+                        <button class="mt-2 text-xs text-red-400/70 hover:text-red-400 transition" onclick="event.stopPropagation();removeFromPlaylist(${pid},${m.id})"><i class="fa fa-minus-circle mr-1"></i>移除</button>
+                    </div>
+                </div>`;
+        });
+        musicList = songs;
+    }
+
+    function closePlaylistDetail() {
+        document.getElementById('playlist-detail').classList.add('hidden');
+        currentPlaylistId = null;
+    }
+
+    async function removeFromPlaylist(pid, mid) {
+        await request('/playlist/' + pid + '/song/' + mid, 'DELETE');
+        showToast('已从歌单移除', 'info');
+        const title = document.getElementById('playlist-detail-title').innerText;
+        await viewPlaylist(pid, title);
+    }
+
+    async function showAddToPlaylist(mid) {
+        addSongId = mid;
+        const r = await request('/playlist/user/' + loginUser.id);
+        myPlaylists = r.data || [];
+        const wrap = document.getElementById('add-to-playlist-list');
+        wrap.innerHTML = '';
+        if (myPlaylists.length === 0) {
+            wrap.innerHTML = '<p class="text-gray-500 text-center py-6 text-sm">📭 还没有歌单，请先创建</p>';
+        } else {
+            myPlaylists.forEach(p => {
+                wrap.innerHTML += `
+                    <div class="flex justify-between items-center glass-strong rounded-xl px-4 py-3 cursor-pointer hover:border-neon-purple transition" onclick="addToPlaylist(${p.id})" style="border-color:rgba(255,255,255,0.04);">
+                        <div><p class="font-medium text-sm">${escapeHtml(p.title)}</p><p class="text-xs text-gray-500">${escapeHtml(p.desc || '')}</p></div>
+                        <i class="fa fa-plus text-neon-purple"></i>
+                    </div>`;
+            });
+        }
+        document.getElementById('add-to-playlist-modal').classList.remove('hidden');
+    }
+
+    function closeAddToPlaylist() { document.getElementById('add-to-playlist-modal').classList.add('hidden');
+        addSongId = null; }
+
+    async function addToPlaylist(pid) {
+        if (!addSongId) return;
+        const r = await request('/playlist/' + pid + '/song/' + addSongId, 'POST');
+        if (r.code === 200) showToast('已添加到歌单', 'success');
+        else showToast(r.message, 'warning');
+        closeAddToPlaylist();
+    }
+
+    function closeAllSections() {
+        document.getElementById('collect-page').classList.add('hidden');
+        document.getElementById('playlist-section').classList.add('hidden');
+        document.getElementById('comment-section').classList.add('hidden');
+    }
+
+    async function filterMusic(cid) {
+        closeAllSections();
+        document.querySelectorAll('.category-tag').forEach(el => el.classList.remove('active'));
+        event.target.classList.add('active');
+        if (cid === 0) { musicList = allMusicList;
+            rebuildMusicMap(allMusicList);
+            renderClientMusic(allMusicList); return; }
+        const r = await request('/music/category/' + cid);
+        renderClientMusic(r.data || []);
+    }
+
+    async function searchMusic() {
+        const key = document.getElementById('search-key').value.trim();
+        closeAllSections();
+        if (!key) { musicList = allMusicList;
+            renderClientMusic(allMusicList); return; }
+        const r = await request('/music/search?keyword=' + encodeURIComponent(key));
+        renderClientMusic(r.data || []);
+    }
+
+    // ===== 管理员 =====
+    async function loadAdminData() {
+        await loadCategories();
+        await loadMusicAdmin();
+        await renderAdminDashboard();
+    }
+
+    function switchAdminTab(tab) {
+        document.querySelectorAll('.admin-content').forEach(el => el.classList.add('hidden'));
+        document.getElementById('admin-' + tab).classList.remove('hidden');
+        if (tab === 'dashboard') renderAdminDashboard();
+        if (tab === 'music') loadMusicAdmin();
+        if (tab === 'category') loadCategories();
+        if (tab === 'user') loadUsers();
+        if (tab === 'comment') loadAdminComments();
+        if (tab === 'playlist') loadPlaylists();
+    }
+
+    async function renderAdminDashboard() {
+        const musicRes = await request('/music/stats');
+        const userRes = await request('/user/list');
+        const stats = musicRes.data || {};
+        const users = userRes.data || [];
+        document.getElementById('stat-music').innerText = stats.totalMusic || 0;
+        document.getElementById('stat-user').innerText = users.length;
+        document.getElementById('stat-play').innerText = stats.totalPlay || 0;
+        document.getElementById('stat-collect').innerText = stats.totalCollect || 0;
+        const mList = stats.musicList || [];
+        if (chartInstance) chartInstance.destroy();
+        const ctx = document.getElementById('data-chart').getContext('2d');
+        chartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: mList.map(m => (m.title || '').slice(0, 6)),
+                datasets: [{ label: '播放量', data: mList.map(m => m.playCount || 0), backgroundColor: '#ff2e8880' }]
+            },
+            options: { responsive: true, plugins: { legend: { labels: { color: '#fff' } } },
+                scales: { x: { ticks: { color: '#aaa' } }, y: { ticks: { color: '#aaa' } } } }
+        });
+    }
+
+    // --- 歌曲管理 ---
+    async function loadMusicAdmin() {
+        const r = await request('/music/list');
+        const allMusic = r.data || [];
+        const catRes = await request('/category/list');
+        categories = catRes.data || [];
+        const tbody = document.getElementById('music-table-body');
+        tbody.innerHTML = '';
+        allMusic.forEach(m => {
+            const cate = categories.find(c => c.id === m.categoryId);
+            tbody.innerHTML += `
+                <tr class="border-t border-white/5 hover:bg-white/5 transition">
+                    <td class="p-4">${m.id}</td>
+                    <td class="p-4"><img src="${m.cover || ''}" class="w-10 h-10 rounded object-cover" /></td>
+                    <td class="p-4">${escapeHtml(m.title)}</td>
+                    <td class="p-4">${escapeHtml(m.singer)}</td>
+                    <td class="p-4">${cate ? `<span style="background:${cate.color};padding:2px 10px;border-radius:4px;font-size:12px">${escapeHtml(cate.name)}</span>` : '-'}</td>
+                    <td class="p-4">${m.playCount || 0}/${m.collectCount || 0}</td>
+                    <td class="p-4">${m.status === 1 ? '<span class="text-green-400">上架</span>' : '<span class="text-red-400">下架</span>'}</td>
+                    <td class="p-4 space-x-2 text-sm">
+                        <button onclick="editMusic(${m.id})" class="text-blue-400 hover:text-blue-300"><i class="fa fa-edit"></i> 编辑</button>
+                        <button onclick="deleteMusic(${m.id})" class="text-red-400 hover:text-red-300"><i class="fa fa-trash"></i> 删除</button>
+                        <button onclick="changeMusicStatus(${m.id})" class="text-yellow-400">${m.status === 1 ? '下架' : '上架'}</button>
+                    </td>
+                </tr>`;
+        });
+    }
+
+    function openMusicModal() {
+        document.getElementById('music-modal').classList.remove('hidden');
+        document.getElementById('modal-title').innerText = '新增歌曲';
+        document.getElementById('edit-music-id').value = '';
+        ['m-title', 'm-singer', 'm-cover', 'm-src', 'm-time', 'm-lyric'].forEach(id => document.getElementById(id)
+            .value = '');
+        document.getElementById('m-cover-file').value = '';
+        document.getElementById('m-audio-file').value = '';
+        document.getElementById('cover-file-name').innerText = '点击选择本地图片';
+        document.getElementById('audio-file-name').innerText = '点击选择本地音频文件';
+        document.getElementById('cover-preview').classList.add('hidden');
+        document.getElementById('cover-preview').src = '';
+        document.getElementById('upload-progress').classList.add('hidden');
+        renderCategorySelect();
+    }
+
+    function closeMusicModal() { document.getElementById('music-modal').classList.add('hidden'); }
+
+    function onCoverFileSelected(input) {
+        const file = input.files[0];
+        if (!file) return;
+        document.getElementById('cover-file-name').innerText = file.name;
+        const reader = new FileReader();
+        reader.onload = (e) => { const preview = document.getElementById('cover-preview');
+            preview.src = e.target.result;
+            preview.classList.remove('hidden'); };
+        reader.readAsDataURL(file);
+    }
+
+    function onAudioFileSelected(input) {
+        const file = input.files[0];
+        if (!file) return;
+        document.getElementById('audio-file-name').innerText = file.name;
+    }
+
+    async function uploadFile(file, type) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('type', type);
+        const res = await fetch(API + '/file/upload', { method: 'POST', body: formData });
+        return await res.json();
+    }
+
+    function renderCategorySelect() {
+        const sel = document.getElementById('m-cid');
+        sel.innerHTML = '';
+        categories.forEach(c => sel.innerHTML += `<option value="${c.id}">${escapeHtml(c.name)}</option>`);
+    }
+
+    async function saveMusic() {
+        const id = document.getElementById('edit-music-id').value;
+        const coverInput = document.getElementById('m-cover').value.trim();
+        const srcInput = document.getElementById('m-src').value.trim();
+        const coverFile = document.getElementById('m-cover-file').files[0];
+        const audioFile = document.getElementById('m-audio-file').files[0];
+        const data = {
+            title: document.getElementById('m-title').value.trim(),
+            singer: document.getElementById('m-singer').value.trim(),
+            categoryId: parseInt(document.getElementById('m-cid').value),
+            cover: coverInput,
+            src: srcInput,
+            duration: document.getElementById('m-time').value.trim(),
+            lyric: document.getElementById('m-lyric').value.trim()
+        };
+        if (!data.title || !data.singer) { alert('歌曲名和歌手不能为空'); return; }
+        const progressEl = document.getElementById('upload-progress');
+        const statusEl = document.getElementById('upload-status');
+        const barEl = document.getElementById('upload-bar');
+        const saveBtn = document.getElementById('save-music-btn');
+        saveBtn.disabled = true;
+        try {
+            if (coverFile) {
+                progressEl.classList.remove('hidden');
+                statusEl.innerText = '正在上传封面...';
+                barEl.style.width = '20%';
+                const coverRes = await uploadFile(coverFile, 'cover');
+                if (coverRes.code === 200) data.cover = coverRes.data;
+                else { alert('封面上传失败：' + coverRes.message);
+                    saveBtn.disabled = false;
+                    progressEl.classList.add('hidden'); return; }
+            }
+            if (audioFile) {
+                progressEl.classList.remove('hidden');
+                statusEl.innerText = '正在上传音频...';
+                barEl.style.width = '50%';
+                const audioRes = await uploadFile(audioFile, 'audio');
+                if (audioRes.code === 200) data.src = audioRes.data;
+                else { alert('音频上传失败：' + audioRes.message);
+                    saveBtn.disabled = false;
+                    progressEl.classList.add('hidden'); return; }
+            }
+            barEl.style.width = '80%';
+            statusEl.innerText = '正在保存歌曲...';
+            let r;
+            if (id) { data.id = parseInt(id);
+                r = await request('/music', 'PUT', data); } else { r = await request('/music', 'POST', data); }
+            barEl.style.width = '100%';
+            if (r.code === 200) {
+                statusEl.innerText = '保存成功！';
+                setTimeout(() => { closeMusicModal();
+                    loadMusicAdmin();
+                    progressEl.classList.add('hidden');
+                    barEl.style.width = '0%'; }, 500);
+            } else { alert(r.message);
+                progressEl.classList.add('hidden');
+                barEl.style.width = '0%'; }
+        } catch (e) { alert('保存出错：' + e.message);
+            progressEl.classList.add('hidden');
+            barEl.style.width = '0%'; } finally { saveBtn.disabled = false; }
+    }
+
+    async function editMusic(mid) {
+        const r = await request('/music/' + mid);
+        const m = r.data;
+        await loadCategories();
+        document.getElementById('music-modal').classList.remove('hidden');
+        document.getElementById('modal-title').innerText = '编辑歌曲';
+        document.getElementById('edit-music-id').value = m.id;
+        document.getElementById('m-title').value = m.title || '';
+        document.getElementById('m-singer').value = m.singer || '';
+        document.getElementById('m-cover').value = m.cover || '';
+        document.getElementById('m-src').value = m.src || '';
+        document.getElementById('m-time').value = m.duration || '';
+        document.getElementById('m-lyric').value = m.lyric || '';
+        document.getElementById('m-cover-file').value = '';
+        document.getElementById('m-audio-file').value = '';
+        document.getElementById('cover-file-name').innerText = '点击选择本地图片';
+        document.getElementById('audio-file-name').innerText = '点击选择本地音频文件';
+        document.getElementById('upload-progress').classList.add('hidden');
+        const preview = document.getElementById('cover-preview');
+        if (m.cover) { preview.src = m.cover;
+            preview.classList.remove('hidden'); } else { preview.classList.add('hidden'); }
+        renderCategorySelect();
+        document.getElementById('m-cid').value = m.categoryId;
+    }
+
+    async function deleteMusic(mid) { if (!confirm('确定永久删除该歌曲？')) return;
+        await request('/music/' + mid, 'DELETE');
+        await loadMusicAdmin(); }
+
+    async function changeMusicStatus(mid) { await request('/music/status/' + mid, 'PUT');
+        await loadMusicAdmin(); }
+
+    // --- 分类管理 ---
+    async function loadCategories() {
+        const r = await request('/category/list');
+        categories = r.data || [];
+        const tbody = document.getElementById('category-table-body');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        categories.forEach(c => {
+            tbody.innerHTML += `
+                <tr class="border-t border-white/5 hover:bg-white/5 transition">
+                    <td class="p-4">${c.id}</td>
+                    <td class="p-4">${escapeHtml(c.name)}</td>
+                    <td class="p-4"><span style="display:inline-block;width:36px;height:18px;background:${c.color};border-radius:4px;vertical-align:middle"></span> ${c.color}</td>
+                    <td class="p-4">${c.sort || 0}</td>
+                    <td class="p-4 space-x-2 text-sm">
+                        <button onclick="editCategory(${c.id})" class="text-blue-400 hover:text-blue-300"><i class="fa fa-edit"></i> 编辑</button>
+                        <button onclick="deleteCategory(${c.id})" class="text-red-400 hover:text-red-300"><i class="fa fa-trash"></i> 删除</button>
+                    </td>
+                </tr>`;
+        });
+    }
+
+    function openCategoryModal() {
+        document.getElementById('category-modal').classList.remove('hidden');
+        document.getElementById('cat-modal-title').innerText = '新增分类';
+        document.getElementById('edit-cat-id').value = '';
+        ['c-name', 'c-color'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('c-sort').value = '0';
+    }
+
+    function closeCategoryModal() { document.getElementById('category-modal').classList.add('hidden'); }
+
+    async function saveCategory() {
+        const id = document.getElementById('edit-cat-id').value;
+        const data = {
+            name: document.getElementById('c-name').value.trim(),
+            color: document.getElementById('c-color').value.trim(),
+            sort: parseInt(document.getElementById('c-sort').value) || 0
+        };
+        if (!data.name) { alert('分类名不能为空'); return; }
+        let r;
+        if (id) { data.id = parseInt(id);
+            r = await request('/category', 'PUT', data); } else { r = await request('/category', 'POST', data); }
+        if (r.code === 200) { closeCategoryModal();
+            await loadCategories(); } else alert(r.message);
+    }
+
+    async function editCategory(cid) {
+        const c = categories.find(x => x.id === cid);
+        if (!c) return;
+        document.getElementById('category-modal').classList.remove('hidden');
+        document.getElementById('cat-modal-title').innerText = '编辑分类';
+        document.getElementById('edit-cat-id').value = c.id;
+        document.getElementById('c-name').value = c.name || '';
+        document.getElementById('c-color').value = c.color || '';
+        document.getElementById('c-sort').value = c.sort || 0;
+    }
+
+    async function deleteCategory(cid) { if (!confirm('确定删除该分类？')) return;
+        await request('/category/' + cid, 'DELETE');
+        await loadCategories(); }
+
+    // --- 用户管理 ---
+    async function loadUsers() {
+        const r = await request('/user/list');
+        const users = r.data || [];
+        const tbody = document.getElementById('user-table-body');
+        tbody.innerHTML = '';
+        users.forEach(u => {
+            tbody.innerHTML += `
+                <tr class="border-t border-white/5 hover:bg-white/5 transition">
+                    <td class="p-4">${u.id}</td>
+                    <td class="p-4">${escapeHtml(u.username)}</td>
+                    <td class="p-4">${escapeHtml(u.nickname || '-')}</td>
+                    <td class="p-4">${u.role === 1 ? '<span class="text-neon-pink">管理员</span>' : '普通用户'}</td>
+                    <td class="p-4">${u.status === 1 ? '<span class="text-green-400">正常</span>' : '<span class="text-red-400">禁用</span>'}</td>
+                    <td class="p-4 space-x-2 text-sm">
+                        <button onclick="changeUserStatus(${u.id})" class="text-yellow-400">${u.status === 1 ? '禁用' : '启用'}</button>
+                        <button onclick="deleteUser(${u.id})" class="text-red-400 hover:text-red-300"><i class="fa fa-trash"></i> 删除</button>
+                    </td>
+                </tr>`;
+        });
+    }
+
+    async function changeUserStatus(uid) { await request('/user/status/' + uid, 'PUT');
+        await loadUsers(); }
+
+    async function deleteUser(uid) { if (!confirm('确定删除该用户？')) return;
+        await request('/user/' + uid, 'DELETE');
+        await loadUsers(); }
+
+    // --- 评论管理 ---
+    async function loadAdminComments() {
+        const r = await request('/comment/list');
+        const comments = r.data || [];
+        const tbody = document.getElementById('comment-table-body');
+        tbody.innerHTML = '';
+        comments.forEach(c => {
+            tbody.innerHTML += `
+                <tr class="border-t border-white/5 hover:bg-white/5 transition">
+                    <td class="p-4">${c.id}</td>
+                    <td class="p-4">${c.userId}</td>
+                    <td class="p-4">${c.musicId}</td>
+                    <td class="p-4 max-w-xs truncate">${escapeHtml(c.content)}</td>
+                    <td class="p-4">${c.likeNum || 0}</td>
+                    <td class="p-4"><button onclick="deleteAdminComment(${c.id})" class="text-red-400 hover:text-red-300"><i class="fa fa-trash"></i> 删除</button></td>
+                </tr>`;
+        });
+    }
+
+    async function deleteAdminComment(cid) { if (!confirm('确定删除该评论？')) return;
+        await request('/comment/' + cid, 'DELETE');
+        await loadAdminComments(); }
+
+    // --- 歌单管理 ---
+    async function loadPlaylists() {
+        const r = await request('/playlist/list');
+        const playlists = r.data || [];
+        const tbody = document.getElementById('playlist-table-body');
+        tbody.innerHTML = '';
+        playlists.forEach(p => {
+            tbody.innerHTML += `
+                <tr class="border-t border-white/5 hover:bg-white/5 transition">
+                    <td class="p-4">${p.id}</td>
+                    <td class="p-4">${escapeHtml(p.title)}</td>
+                    <td class="p-4">${p.userId}</td>
+                    <td class="p-4 max-w-xs truncate">${escapeHtml(p.desc || '-')}</td>
+                    <td class="p-4 space-x-2 text-sm">
+                        <button onclick="viewAdminPlaylist(${p.id},'${(p.title||'').replace(/'/g,"\\'")}')" class="text-blue-400 hover:text-blue-300"><i class="fa fa-eye"></i> 查看</button>
+                        <button onclick="deletePlaylist(${p.id})" class="text-red-400 hover:text-red-300"><i class="fa fa-trash"></i> 删除</button>
+                    </td>
+                </tr>`;
+        });
+    }
+
+    async function deletePlaylist(pid) { if (!confirm('确定删除该歌单？')) return;
+        await request('/playlist/' + pid, 'DELETE');
+        await loadPlaylists(); }
+
+    function openAdminPlaylistModal() {
+        document.getElementById('admin-playlist-modal').classList.remove('hidden');
+        document.getElementById('admin-pl-title').value = '';
+        document.getElementById('admin-pl-desc').value = '';
+        document.getElementById('admin-pl-uid').value = loginUser.id;
+    }
+
+    function closeAdminPlaylistModal() { document.getElementById('admin-playlist-modal').classList.add('hidden'); }
+
+    async function saveAdminPlaylist() {
+        const title = document.getElementById('admin-pl-title').value.trim();
+        if (!title) { alert('歌单名称不能为空'); return; }
+        const r = await request('/playlist', 'POST', {
+            userId: parseInt(document.getElementById('admin-pl-uid').value) || loginUser.id,
+            title,
+            desc: document.getElementById('admin-pl-desc').value.trim()
+        });
+        if (r.code === 200) { closeAdminPlaylistModal();
+            await loadPlaylists(); } else alert(r.message);
+    }
+
+    async function viewAdminPlaylist(pid, title) {
+        const r = await request('/playlist/' + pid + '/songs');
+        const songs = r.data || [];
+        let info = '歌单【' + title + '】共 ' + songs.length + ' 首歌曲：\n';
+        songs.forEach((s, i) => { info += (i + 1) + '. ' + s.title + ' - ' + s.singer + '\n'; });
+        alert(info);
+    }
+
+    // ===== 初始化：显示登录页 =====
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('page-login').classList.remove('hidden');
+    });
+</script>
+</body>
+</html>
